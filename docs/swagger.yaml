@@ -1,0 +1,219 @@
+definitions:
+  handler.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  handler.LoginResponse:
+    properties:
+      exp:
+        type: integer
+      id:
+        type: integer
+      token:
+        type: string
+      username:
+        type: string
+    type: object
+  handler.StandardResponse:
+    properties:
+      code:
+        type: integer
+      data: {}
+      message:
+        type: string
+    type: object
+  handler.UpdateUserInfoRequest:
+    properties:
+      new_password:
+        minLength: 6
+        type: string
+      old_password:
+        type: string
+      username:
+        type: string
+    type: object
+  model.User:
+    properties:
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      id:
+        example: 1
+        type: integer
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      username:
+        example: admin
+        type: string
+    type: object
+info:
+  contact: {}
+  description: BestSub API server
+  title: BestSub API
+  version: "1.0"
+paths:
+  /api/health:
+    get:
+      description: Get server health status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Server is healthy
+          schema:
+            properties:
+              status:
+                type: string
+              time:
+                type: string
+            type: object
+      summary: Health check
+      tags:
+      - System
+  /api/user/info:
+    get:
+      consumes:
+      - application/json
+      description: Get information of the currently logged-in user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.User'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.StandardResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/handler.StandardResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.StandardResponse'
+      security:
+      - BearerAuth: []
+      summary: Get user information
+      tags:
+      - User
+    put:
+      consumes:
+      - application/json
+      description: Update user information (username, password)
+      parameters:
+      - description: Update user information request parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateUserInfoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Update successful
+          schema:
+            $ref: '#/definitions/handler.StandardResponse'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/handler.StandardResponse'
+        "401":
+          description: Unauthorized or incorrect old password
+          schema:
+            $ref: '#/definitions/handler.StandardResponse'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/handler.StandardResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.StandardResponse'
+      security:
+      - BearerAuth: []
+      summary: Update user information
+      tags:
+      - User
+  /api/user/login:
+    post:
+      consumes:
+      - application/json
+      description: User login and get JWT token
+      parameters:
+      - description: Login request parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.LoginResponse'
+              type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/handler.StandardResponse'
+        "401":
+          description: Invalid username or password
+          schema:
+            $ref: '#/definitions/handler.StandardResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.StandardResponse'
+      summary: User login
+      tags:
+      - User
+  /api/user/logout:
+    post:
+      consumes:
+      - application/json
+      description: User logout and invalidate JWT token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logout successful
+          schema:
+            $ref: '#/definitions/handler.StandardResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.StandardResponse'
+      security:
+      - BearerAuth: []
+      summary: User logout
+      tags:
+      - User
+securityDefinitions:
+  BearerAuth:
+    description: 请在值前加上 "Bearer " 前缀，例如："Bearer abcde12345"
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

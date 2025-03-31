@@ -1,0 +1,3 @@
+build/
+web/out/*
+!web/out/README.md
