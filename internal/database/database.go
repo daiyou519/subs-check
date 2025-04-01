@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/bestruirui/bestsub/internal/logger"
-	"github.com/bestruirui/bestsub/internal/model"
 	_ "github.com/mattn/go-sqlite3"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -51,7 +51,6 @@ func InitDatabase(dbPath string) error {
 func InitDatabaseWithConfig(config Config) error {
 	var err error
 
-	// Ensure initialization happens only once
 	once.Do(func() {
 		DB, err = setupDatabase(config)
 	})
@@ -63,18 +62,15 @@ func InitDatabaseWithConfig(config Config) error {
 func setupDatabase(config Config) (*sql.DB, error) {
 	logger.Info("Opening database connection to %s", config.Path)
 
-	// Open database connection
 	db, err := sql.Open("sqlite3", config.Path+"?_loc=auto&_journal=WAL&_timeout=5000")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	// Configure connection pool
 	db.SetMaxIdleConns(config.MaxIdleConns)
 	db.SetMaxOpenConns(config.MaxOpenConns)
 	db.SetConnMaxLifetime(config.ConnMaxLifetime)
 
-	// Verify connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -82,14 +78,16 @@ func setupDatabase(config Config) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	// Create database schema
 	if err := createSchema(db); err != nil {
 		return nil, fmt.Errorf("failed to create schema: %w", err)
 	}
 
-	// Create initial admin user (if not exists)
 	if err := createInitialAdminUser(db); err != nil {
 		return nil, fmt.Errorf("failed to create admin user: %w", err)
+	}
+
+	if err := RunMigrations(db); err != nil {
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
 	logger.Info("Database initialized successfully")
@@ -101,14 +99,12 @@ func createSchema(db *sql.DB) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Use transaction to ensure atomicity
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	// Create users table
 	_, err = tx.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS users (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -116,6 +112,24 @@ func createSchema(db *sql.DB) error {
 			password TEXT NOT NULL,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)
+	`)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `
+		CREATE TABLE IF NOT EXISTS subs (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			url TEXT NOT NULL,
+			last_check DATETIME,
+			last_fetch DATETIME,
+			cron TEXT DEFAULT '0 */1 * * *',
+			auto_update INTEGER DEFAULT 0,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			total_nodes INTEGER DEFAULT 0,
+			alive_nodes INTEGER DEFAULT 0
 		)
 	`)
 	if err != nil {
@@ -130,40 +144,33 @@ func createInitialAdminUser(db *sql.DB) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Check if admin exists
 	var count int
 	err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM users WHERE id = 1").Scan(&count)
 	if err != nil {
 		return err
 	}
 
-	// If not exists, create admin user
 	if count == 0 {
-		// Begin transaction
 		tx, err := db.BeginTx(ctx, nil)
 		if err != nil {
 			return err
 		}
 		defer tx.Rollback()
 
-		// Create admin user
-		adminUser := model.User{
-			Username: "admin",
-		}
-		if err := adminUser.SetPassword("admin"); err != nil {
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte("admin"), bcrypt.DefaultCost)
+		if err != nil {
 			return err
 		}
 
 		_, err = tx.ExecContext(ctx,
 			"INSERT INTO users (id, username, password) VALUES (1, ?, ?)",
-			adminUser.Username,
-			adminUser.Password,
+			"admin",
+			string(hashedPassword),
 		)
 		if err != nil {
 			return err
 		}
 
-		// Commit transaction
 		if err := tx.Commit(); err != nil {
 			return err
 		}
@@ -181,25 +188,20 @@ func WithTransaction(ctx context.Context, fn func(tx *sql.Tx) error) error {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	// Ensure transaction will be completed
 	defer func() {
-		// If panic occurs, rollback transaction
 		if p := recover(); p != nil {
 			tx.Rollback()
-			panic(p) // Re-throw panic
+			panic(p)
 		} else if err != nil {
-			// If error occurs, rollback transaction
 			tx.Rollback()
 		}
 	}()
 
-	// Execute transaction function
 	err = fn(tx)
 	if err != nil {
 		return err
 	}
 
-	// Commit transaction
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
@@ -207,7 +209,6 @@ func WithTransaction(ctx context.Context, fn func(tx *sql.Tx) error) error {
 	return nil
 }
 
-// Close Closes database connection
 func Close() error {
 	if DB != nil {
 		logger.Info("Closing database connection")

@@ -12,6 +12,7 @@ import (
 	"github.com/bestruirui/bestsub/internal/model"
 	"github.com/bestruirui/bestsub/internal/repository"
 	"github.com/bestruirui/bestsub/internal/router"
+	"github.com/bestruirui/bestsub/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
 )
@@ -26,13 +27,16 @@ const (
 // UserHandler User related request handler
 type UserHandler struct {
 	userRepo repository.UserRepository
+	userSvc  *service.UserService
 	config   *model.Config
 }
 
 // NewUserHandler Creates new user handler
 func NewUserHandler(db *sql.DB, config *model.Config) *UserHandler {
+	userRepo := repository.NewUserRepository(db)
 	return &UserHandler{
-		userRepo: repository.NewUserRepository(db),
+		userRepo: userRepo,
+		userSvc:  service.NewUserService(userRepo),
 		config:   config,
 	}
 }
@@ -86,24 +90,17 @@ type LoginResponse struct {
 	Exp      int64  `json:"exp"`
 }
 
-// StandardResponse API standard response structure
-type StandardResponse struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data"`
-}
-
 // Login godoc
-// @Summary User login
-// @Description User login and get JWT token
-// @Tags User
+// @Summary 用户登录
+// @Description 用户登录并获取JWT令牌
+// @Tags 用户
 // @Accept json
 // @Produce json
-// @Param request body LoginRequest true "Login request parameters"
-// @Success 200 {object} StandardResponse{data=LoginResponse} "Login successful"
-// @Failure 400 {object} StandardResponse{} "Invalid request parameters"
-// @Failure 401 {object} StandardResponse{} "Invalid username or password"
-// @Failure 500 {object} StandardResponse{} "Internal server error"
+// @Param request body LoginRequest true "登录请求参数"
+// @Success 200 {object} model.SuccessResponse{data=LoginResponse} "登录成功"
+// @Failure 400 {object} model.BadRequestResponse{} "无效的请求参数"
+// @Failure 401 {object} model.UnauthorizedResponse{} "用户名或密码错误"
+// @Failure 500 {object} model.ServerErrorResponse{} "服务器内部错误"
 // @Router /api/user/login [post]
 func (h *UserHandler) Login(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), RequestTimeout)
@@ -111,7 +108,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, StandardResponse{
+		c.JSON(http.StatusBadRequest, model.BadRequestResponse{
 			Code:    http.StatusBadRequest,
 			Message: "Invalid request parameters",
 			Data:    nil,
@@ -119,31 +116,22 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	user, err := h.userRepo.GetByUsername(ctx, req.Username)
+	user, err := h.userSvc.Authenticate(ctx, req.Username, req.Password)
 	if err != nil {
 		status := http.StatusInternalServerError
 		message := "Internal server error"
 
-		if errors.Is(err, repository.ErrUserNotFound) {
+		if errors.Is(err, service.ErrInvalidCredentials) {
 			status = http.StatusUnauthorized
 			message = "Invalid username or password"
 		}
 
-		c.JSON(status, StandardResponse{
+		c.JSON(status, model.ServerErrorResponse{
 			Code:    status,
 			Message: message,
 			Data:    nil,
 		})
 		logger.Error("Login failed: %v", err)
-		return
-	}
-
-	if !user.CheckPassword(req.Password) {
-		c.JSON(http.StatusUnauthorized, StandardResponse{
-			Code:    http.StatusUnauthorized,
-			Message: "Invalid username or password",
-			Data:    nil,
-		})
 		return
 	}
 
@@ -161,7 +149,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 
 	tokenString, err := token.SignedString([]byte(h.config.JWT.Secret))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, StandardResponse{
+		c.JSON(http.StatusInternalServerError, model.ServerErrorResponse{
 			Code:    http.StatusInternalServerError,
 			Message: "Failed to generate token",
 			Data:    nil,
@@ -170,7 +158,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, StandardResponse{
+	c.JSON(http.StatusOK, model.SuccessResponse{
 		Code:    http.StatusOK,
 		Message: "Login successful",
 		Data: LoginResponse{
@@ -183,19 +171,20 @@ func (h *UserHandler) Login(c *gin.Context) {
 }
 
 // Logout godoc
-// @Summary User logout
-// @Description User logout and invalidate JWT token
-// @Tags User
+// @Summary 用户登出
+// @Description 用户登出并使JWT令牌失效
+// @Tags 用户
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} StandardResponse{} "Logout successful"
-// @Failure 401 {object} StandardResponse{} "Unauthorized"
+// @Success 200 {object} model.SuccessResponse{} "登出成功"
+// @Failure 401 {object} model.UnauthorizedResponse{} "未授权"
+// @Failure 500 {object} model.ServerErrorResponse{} "服务器错误"
 // @Router /api/user/logout [post]
 func (h *UserHandler) Logout(c *gin.Context) {
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, StandardResponse{
+		c.JSON(http.StatusUnauthorized, model.UnauthorizedResponse{
 			Code:    http.StatusUnauthorized,
 			Message: "Unauthorized",
 			Data:    nil,
@@ -205,7 +194,7 @@ func (h *UserHandler) Logout(c *gin.Context) {
 
 	logger.Info("User logged out: UserID=%d", userID.(int64))
 
-	c.JSON(http.StatusOK, StandardResponse{
+	c.JSON(http.StatusOK, model.SuccessResponse{
 		Code:    http.StatusOK,
 		Message: "Logout successful",
 		Data:    nil,
@@ -213,16 +202,16 @@ func (h *UserHandler) Logout(c *gin.Context) {
 }
 
 // GetUserInfo godoc
-// @Summary Get user information
-// @Description Get information of the currently logged-in user
-// @Tags User
+// @Summary 获取用户信息
+// @Description 获取当前登录用户的信息
+// @Tags 用户
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} StandardResponse{data=model.User} "Success"
-// @Failure 401 {object} StandardResponse{} "Unauthorized"
-// @Failure 404 {object} StandardResponse{} "User not found"
-// @Failure 500 {object} StandardResponse{} "Internal server error"
+// @Success 200 {object} model.SuccessResponse{data=model.User} "成功"
+// @Failure 401 {object} model.UnauthorizedResponse{} "未授权"
+// @Failure 404 {object} model.NotFoundResponse{} "用户不存在"
+// @Failure 500 {object} model.ServerErrorResponse{} "服务器错误"
 // @Router /api/user/info [get]
 func (h *UserHandler) GetUserInfo(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), RequestTimeout)
@@ -230,7 +219,7 @@ func (h *UserHandler) GetUserInfo(c *gin.Context) {
 
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, StandardResponse{
+		c.JSON(http.StatusUnauthorized, model.UnauthorizedResponse{
 			Code:    http.StatusUnauthorized,
 			Message: "Unauthorized",
 			Data:    nil,
@@ -248,7 +237,7 @@ func (h *UserHandler) GetUserInfo(c *gin.Context) {
 			message = "User not found"
 		}
 
-		c.JSON(status, StandardResponse{
+		c.JSON(status, model.ServerErrorResponse{
 			Code:    status,
 			Message: message,
 			Data:    nil,
@@ -257,10 +246,10 @@ func (h *UserHandler) GetUserInfo(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, StandardResponse{
+	c.JSON(http.StatusOK, model.SuccessResponse{
 		Code:    http.StatusOK,
 		Message: "Success",
-		Data:    user.Sanitize(),
+		Data:    h.userSvc.SanitizeUser(user),
 	})
 }
 
@@ -272,18 +261,18 @@ type UpdateUserInfoRequest struct {
 }
 
 // UpdateUserInfo godoc
-// @Summary Update user information
-// @Description Update user information (username, password)
-// @Tags User
+// @Summary 更新用户信息
+// @Description 更新用户信息（用户名、密码）
+// @Tags 用户
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param request body UpdateUserInfoRequest true "Update user information request parameters"
-// @Success 200 {object} StandardResponse{} "Update successful"
-// @Failure 400 {object} StandardResponse{} "Invalid request parameters"
-// @Failure 401 {object} StandardResponse{} "Unauthorized or incorrect old password"
-// @Failure 404 {object} StandardResponse{} "User not found"
-// @Failure 500 {object} StandardResponse{} "Internal server error"
+// @Param request body UpdateUserInfoRequest true "更新用户信息请求参数"
+// @Success 200 {object} model.SuccessResponse{} "更新成功"
+// @Failure 400 {object} model.BadRequestResponse{} "无效的请求参数"
+// @Failure 401 {object} model.UnauthorizedResponse{} "未授权或旧密码错误"
+// @Failure 404 {object} model.NotFoundResponse{} "用户不存在"
+// @Failure 500 {object} model.ServerErrorResponse{} "服务器错误"
 // @Router /api/user/info [put]
 func (h *UserHandler) UpdateUserInfo(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), RequestTimeout)
@@ -291,7 +280,7 @@ func (h *UserHandler) UpdateUserInfo(c *gin.Context) {
 
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, StandardResponse{
+		c.JSON(http.StatusUnauthorized, model.UnauthorizedResponse{
 			Code:    http.StatusUnauthorized,
 			Message: "Unauthorized",
 			Data:    nil,
@@ -301,7 +290,7 @@ func (h *UserHandler) UpdateUserInfo(c *gin.Context) {
 
 	var req UpdateUserInfoRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, StandardResponse{
+		c.JSON(http.StatusBadRequest, model.BadRequestResponse{
 			Code:    http.StatusBadRequest,
 			Message: "Invalid request parameters",
 			Data:    nil,
@@ -319,7 +308,7 @@ func (h *UserHandler) UpdateUserInfo(c *gin.Context) {
 			message = "User not found"
 		}
 
-		c.JSON(status, StandardResponse{
+		c.JSON(status, model.ServerErrorResponse{
 			Code:    status,
 			Message: message,
 			Data:    nil,
@@ -329,39 +318,28 @@ func (h *UserHandler) UpdateUserInfo(c *gin.Context) {
 	}
 
 	if req.OldPassword != "" && req.NewPassword != "" {
-		if !user.CheckPassword(req.OldPassword) {
-			c.JSON(http.StatusUnauthorized, StandardResponse{
-				Code:    http.StatusUnauthorized,
-				Message: "Invalid old password",
-				Data:    nil,
-			})
-			return
-		}
+		if err := h.userSvc.ChangePassword(ctx, user.ID, req.OldPassword, req.NewPassword); err != nil {
+			status := http.StatusInternalServerError
+			message := "Failed to update password"
 
-		if err := user.SetPassword(req.NewPassword); err != nil {
-			c.JSON(http.StatusInternalServerError, StandardResponse{
-				Code:    http.StatusInternalServerError,
-				Message: "Failed to encrypt new password",
-				Data:    nil,
-			})
-			logger.Error("Failed to set new password: %v", err)
-			return
-		}
+			if errors.Is(err, service.ErrInvalidCredentials) {
+				status = http.StatusUnauthorized
+				message = "Invalid old password"
+			}
 
-		if err := h.userRepo.UpdatePassword(ctx, user.ID, user.Password); err != nil {
-			c.JSON(http.StatusInternalServerError, StandardResponse{
-				Code:    http.StatusInternalServerError,
-				Message: "Failed to update password",
+			c.JSON(status, model.ServerErrorResponse{
+				Code:    status,
+				Message: message,
 				Data:    nil,
 			})
-			logger.Error("Failed to update password in DB: %v", err)
+			logger.Error("Failed to change password: %v", err)
 			return
 		}
 	}
 
 	if req.Username != "" && req.Username != user.Username {
 		user.Username = req.Username
-		if err := h.userRepo.Update(ctx, user); err != nil {
+		if err := h.userSvc.UpdateUserInfo(ctx, user); err != nil {
 			status := http.StatusInternalServerError
 			message := "Failed to update username"
 
@@ -370,7 +348,7 @@ func (h *UserHandler) UpdateUserInfo(c *gin.Context) {
 				message = "Username already exists"
 			}
 
-			c.JSON(status, StandardResponse{
+			c.JSON(status, model.ServerErrorResponse{
 				Code:    status,
 				Message: message,
 				Data:    nil,
@@ -380,7 +358,7 @@ func (h *UserHandler) UpdateUserInfo(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, StandardResponse{
+	c.JSON(http.StatusOK, model.SuccessResponse{
 		Code:    http.StatusOK,
 		Message: "User information updated successfully",
 		Data:    nil,

@@ -1,4 +1,17 @@
 definitions:
+  handler.CreateSubRequest:
+    properties:
+      auto_update:
+        type: boolean
+      cron:
+        type: string
+      url:
+        type: string
+    required:
+    - auto_update
+    - cron
+    - url
+    type: object
   handler.LoginRequest:
     properties:
       password:
@@ -20,12 +33,13 @@ definitions:
       username:
         type: string
     type: object
-  handler.StandardResponse:
+  handler.UpdateSubRequest:
     properties:
-      code:
-        type: integer
-      data: {}
-      message:
+      auto_update:
+        type: boolean
+      cron:
+        type: string
+      url:
         type: string
     type: object
   handler.UpdateUserInfoRequest:
@@ -36,6 +50,89 @@ definitions:
       old_password:
         type: string
       username:
+        type: string
+    type: object
+  model.BadRequestResponse:
+    properties:
+      code:
+        example: 400
+        type: integer
+      data: {}
+      message:
+        example: Invalid request parameters
+        type: string
+    type: object
+  model.ConflictResponse:
+    properties:
+      code:
+        example: 409
+        type: integer
+      data: {}
+      message:
+        example: Conflict
+        type: string
+    type: object
+  model.NotFoundResponse:
+    properties:
+      code:
+        example: 404
+        type: integer
+      data: {}
+      message:
+        example: Not found
+        type: string
+    type: object
+  model.ServerErrorResponse:
+    properties:
+      code:
+        example: 500
+        type: integer
+      data: {}
+      message:
+        example: Internal server error
+        type: string
+    type: object
+  model.Sub:
+    properties:
+      alive_nodes:
+        type: integer
+      auto_update:
+        type: boolean
+      created_at:
+        type: string
+      cron:
+        type: string
+      id:
+        type: integer
+      last_check:
+        type: string
+      last_fetch:
+        type: string
+      total_nodes:
+        type: integer
+      updated_at:
+        type: string
+      url:
+        type: string
+    type: object
+  model.SuccessResponse:
+    properties:
+      code:
+        example: 200
+        type: integer
+      data: {}
+      message:
+        example: success
+        type: string
+    type: object
+  model.UnauthorizedResponse:
+    properties:
+      code:
+        example: 401
+        type: integer
+      data: {}
+      message:
+        example: Unauthorized access
         type: string
     type: object
   model.User:
@@ -61,12 +158,12 @@ info:
 paths:
   /api/health:
     get:
-      description: Get server health status
+      description: 获取服务器健康状态
       produces:
       - application/json
       responses:
         "200":
-          description: Server is healthy
+          description: 服务器健康
           schema:
             properties:
               status:
@@ -74,49 +171,297 @@ paths:
               time:
                 type: string
             type: object
-      summary: Health check
+      summary: 健康检查
       tags:
-      - System
-  /api/user/info:
-    get:
+      - 系统
+  /api/sub/{id}:
+    delete:
       consumes:
       - application/json
-      description: Get information of the currently logged-in user
+      description: 根据ID删除订阅
+      parameters:
+      - description: 订阅ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
       - application/json
       responses:
         "200":
-          description: Success
+          description: 订阅已删除
+          schema:
+            $ref: '#/definitions/model.SuccessResponse'
+        "400":
+          description: 无效请求
+          schema:
+            $ref: '#/definitions/model.BadRequestResponse'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/model.UnauthorizedResponse'
+        "404":
+          description: 订阅不存在
+          schema:
+            $ref: '#/definitions/model.NotFoundResponse'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/model.ServerErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除订阅
+      tags:
+      - 订阅
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取订阅详情
+      parameters:
+      - description: 订阅ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
           schema:
             allOf:
-            - $ref: '#/definitions/handler.StandardResponse'
+            - $ref: '#/definitions/model.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Sub'
+              type: object
+        "400":
+          description: 无效请求
+          schema:
+            $ref: '#/definitions/model.BadRequestResponse'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/model.UnauthorizedResponse'
+        "404":
+          description: 订阅不存在
+          schema:
+            $ref: '#/definitions/model.NotFoundResponse'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/model.ServerErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取订阅详情
+      tags:
+      - 订阅
+    put:
+      consumes:
+      - application/json
+      description: 更新订阅URL
+      parameters:
+      - description: 订阅ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新的订阅数据
+        in: body
+        name: sub
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateSubRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 订阅已更新
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Sub'
+              type: object
+        "400":
+          description: 无效请求
+          schema:
+            $ref: '#/definitions/model.BadRequestResponse'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/model.UnauthorizedResponse'
+        "404":
+          description: 订阅不存在
+          schema:
+            $ref: '#/definitions/model.NotFoundResponse'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/model.ServerErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新订阅
+      tags:
+      - 订阅
+  /api/sub/{id}/content:
+    get:
+      consumes:
+      - application/json
+      description: 从订阅URL中获取内容并存储到内存中
+      parameters:
+      - description: 订阅ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Sub'
+              type: object
+        "400":
+          description: 无效请求
+          schema:
+            $ref: '#/definitions/model.BadRequestResponse'
+        "404":
+          description: 订阅不存在
+          schema:
+            $ref: '#/definitions/model.ServerErrorResponse'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/model.ServerErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取订阅内容
+      tags:
+      - 订阅
+  /api/sub/add:
+    post:
+      consumes:
+      - application/json
+      description: 使用提供的URL创建新订阅
+      parameters:
+      - description: 订阅数据
+        in: body
+        name: sub
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateSubRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: 订阅创建成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.Sub'
+              type: object
+        "400":
+          description: 无效请求
+          schema:
+            $ref: '#/definitions/model.BadRequestResponse'
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/model.UnauthorizedResponse'
+        "409":
+          description: 订阅已存在
+          schema:
+            $ref: '#/definitions/model.ConflictResponse'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/model.ServerErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建新订阅
+      tags:
+      - 订阅
+  /api/sub/list:
+    get:
+      consumes:
+      - application/json
+      description: 获取所有订阅的列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.SuccessResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/model.Sub'
+                  type: array
+              type: object
+        "401":
+          description: 未授权
+          schema:
+            $ref: '#/definitions/model.UnauthorizedResponse'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/model.ServerErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取所有订阅
+      tags:
+      - 订阅
+  /api/user/info:
+    get:
+      consumes:
+      - application/json
+      description: 获取当前登录用户的信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            allOf:
+            - $ref: '#/definitions/model.SuccessResponse'
             - properties:
                 data:
                   $ref: '#/definitions/model.User'
               type: object
         "401":
-          description: Unauthorized
+          description: 未授权
           schema:
-            $ref: '#/definitions/handler.StandardResponse'
+            $ref: '#/definitions/model.UnauthorizedResponse'
         "404":
-          description: User not found
+          description: 用户不存在
           schema:
-            $ref: '#/definitions/handler.StandardResponse'
+            $ref: '#/definitions/model.NotFoundResponse'
         "500":
-          description: Internal server error
+          description: 服务器错误
           schema:
-            $ref: '#/definitions/handler.StandardResponse'
+            $ref: '#/definitions/model.ServerErrorResponse'
       security:
       - BearerAuth: []
-      summary: Get user information
+      summary: 获取用户信息
       tags:
-      - User
+      - 用户
     put:
       consumes:
       - application/json
-      description: Update user information (username, password)
+      description: 更新用户信息（用户名、密码）
       parameters:
-      - description: Update user information request parameters
+      - description: 更新用户信息请求参数
         in: body
         name: request
         required: true
@@ -126,37 +471,37 @@ paths:
       - application/json
       responses:
         "200":
-          description: Update successful
+          description: 更新成功
           schema:
-            $ref: '#/definitions/handler.StandardResponse'
+            $ref: '#/definitions/model.SuccessResponse'
         "400":
-          description: Invalid request parameters
+          description: 无效的请求参数
           schema:
-            $ref: '#/definitions/handler.StandardResponse'
+            $ref: '#/definitions/model.BadRequestResponse'
         "401":
-          description: Unauthorized or incorrect old password
+          description: 未授权或旧密码错误
           schema:
-            $ref: '#/definitions/handler.StandardResponse'
+            $ref: '#/definitions/model.UnauthorizedResponse'
         "404":
-          description: User not found
+          description: 用户不存在
           schema:
-            $ref: '#/definitions/handler.StandardResponse'
+            $ref: '#/definitions/model.NotFoundResponse'
         "500":
-          description: Internal server error
+          description: 服务器错误
           schema:
-            $ref: '#/definitions/handler.StandardResponse'
+            $ref: '#/definitions/model.ServerErrorResponse'
       security:
       - BearerAuth: []
-      summary: Update user information
+      summary: 更新用户信息
       tags:
-      - User
+      - 用户
   /api/user/login:
     post:
       consumes:
       - application/json
-      description: User login and get JWT token
+      description: 用户登录并获取JWT令牌
       parameters:
-      - description: Login request parameters
+      - description: 登录请求参数
         in: body
         name: request
         required: true
@@ -166,50 +511,54 @@ paths:
       - application/json
       responses:
         "200":
-          description: Login successful
+          description: 登录成功
           schema:
             allOf:
-            - $ref: '#/definitions/handler.StandardResponse'
+            - $ref: '#/definitions/model.SuccessResponse'
             - properties:
                 data:
                   $ref: '#/definitions/handler.LoginResponse'
               type: object
         "400":
-          description: Invalid request parameters
+          description: 无效的请求参数
           schema:
-            $ref: '#/definitions/handler.StandardResponse'
+            $ref: '#/definitions/model.BadRequestResponse'
         "401":
-          description: Invalid username or password
+          description: 用户名或密码错误
           schema:
-            $ref: '#/definitions/handler.StandardResponse'
+            $ref: '#/definitions/model.UnauthorizedResponse'
         "500":
-          description: Internal server error
+          description: 服务器内部错误
           schema:
-            $ref: '#/definitions/handler.StandardResponse'
-      summary: User login
+            $ref: '#/definitions/model.ServerErrorResponse'
+      summary: 用户登录
       tags:
-      - User
+      - 用户
   /api/user/logout:
     post:
       consumes:
       - application/json
-      description: User logout and invalidate JWT token
+      description: 用户登出并使JWT令牌失效
       produces:
       - application/json
       responses:
         "200":
-          description: Logout successful
+          description: 登出成功
           schema:
-            $ref: '#/definitions/handler.StandardResponse'
+            $ref: '#/definitions/model.SuccessResponse'
         "401":
-          description: Unauthorized
+          description: 未授权
           schema:
-            $ref: '#/definitions/handler.StandardResponse'
+            $ref: '#/definitions/model.UnauthorizedResponse'
+        "500":
+          description: 服务器错误
+          schema:
+            $ref: '#/definitions/model.ServerErrorResponse'
       security:
       - BearerAuth: []
-      summary: User logout
+      summary: 用户登出
       tags:
-      - User
+      - 用户
 securityDefinitions:
   BearerAuth:
     description: 请在值前加上 "Bearer " 前缀，例如："Bearer abcde12345"

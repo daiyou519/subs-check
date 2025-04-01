@@ -22,7 +22,6 @@ type SystemHandler struct {
 
 // NewSystemHandler Creates system handler instance
 func NewSystemHandler(config *model.Config) *SystemHandler {
-	// Get sub filesystem from embedded file system
 	subFS, err := fs.Sub(web.Web, "out")
 	if err != nil {
 		logger.Error("Failed to get sub filesystem: %v", err)
@@ -43,7 +42,6 @@ func (h *SystemHandler) Groups() []*router.GroupRouter {
 
 // SystemGroup Returns system related API route group
 func (h *SystemHandler) SystemGroup() *router.GroupRouter {
-	// 使用链式API创建路由组
 	return router.NewGroupRouter("/api").
 		AddRoute(
 			router.NewRoute("/health", router.GET).
@@ -53,11 +51,11 @@ func (h *SystemHandler) SystemGroup() *router.GroupRouter {
 }
 
 // HealthCheck godoc
-// @Summary Health check
-// @Description Get server health status
-// @Tags System
+// @Summary 健康检查
+// @Description 获取服务器健康状态
+// @Tags 系统
 // @Produce json
-// @Success 200 {object} object{status=string,time=string} "Server is healthy"
+// @Success 200 {object} object{status=string,time=string} "服务器健康"
 // @Router /api/health [get]
 func (h *SystemHandler) HealthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
@@ -75,18 +73,14 @@ func (h *SystemHandler) SetupStaticAssets(router *gin.Engine) {
 
 	logger.Info("Setting up static assets...")
 
-	// Create file system HTTP handler
 	fileServer := http.FileServer(http.FS(h.fsRoot))
 
-	// Register static asset handling
 	router.GET("/", func(c *gin.Context) {
 		c.Request.URL.Path = "/index.html"
 		fileServer.ServeHTTP(c.Writer, c.Request)
 	})
 
-	// Static asset handling
 	router.NoRoute(func(c *gin.Context) {
-		// If API path, return 404
 		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
 			c.JSON(http.StatusNotFound, gin.H{
 				"code":    404,
@@ -95,13 +89,10 @@ func (h *SystemHandler) SetupStaticAssets(router *gin.Engine) {
 			return
 		}
 
-		// Handle frontend routing
 		ext := path.Ext(c.Request.URL.Path)
 		if ext == "" {
-			// Path without extension is considered frontend routing, return index.html
 			c.Request.URL.Path = "/index.html"
 		} else if ext != ".html" {
-			// For static resource requests, keep the path unchanged
 		}
 
 		fileServer.ServeHTTP(c.Writer, c.Request)

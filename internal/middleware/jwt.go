@@ -12,13 +12,6 @@ import (
 	"github.com/golang-jwt/jwt"
 )
 
-// Standard error response
-type ErrorResponse struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data"`
-}
-
 // Define JWT related errors
 var (
 	ErrMissingAuthHeader  = errors.New("missing authentication header")
@@ -104,7 +97,7 @@ func JWTAuth(config *model.Config) gin.HandlerFunc {
 // abortWithError Aborts request and returns error response
 func abortWithError(c *gin.Context, status int, err error) {
 	logger.Warn("JWT authentication failed: %v", err)
-	c.AbortWithStatusJSON(status, ErrorResponse{
+	c.AbortWithStatusJSON(status, model.StandardResponse{
 		Code:    status,
 		Message: err.Error(),
 		Data:    nil,

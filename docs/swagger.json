@@ -9,17 +9,17 @@
     "paths": {
         "/api/health": {
             "get": {
-                "description": "Get server health status",
+                "description": "获取服务器健康状态",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "System"
+                    "系统"
                 ],
-                "summary": "Health check",
+                "summary": "健康检查",
                 "responses": {
                     "200": {
-                        "description": "Server is healthy",
+                        "description": "服务器健康",
                         "schema": {
                             "type": "object",
                             "properties": {
@@ -35,14 +35,14 @@
                 }
             }
         },
-        "/api/user/info": {
-            "get": {
+        "/api/sub/add": {
+            "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get information of the currently logged-in user",
+                "description": "使用提供的URL创建新订阅",
                 "consumes": [
                     "application/json"
                 ],
@@ -50,16 +50,425 @@
                     "application/json"
                 ],
                 "tags": [
-                    "User"
+                    "订阅"
                 ],
-                "summary": "Get user information",
+                "summary": "创建新订阅",
+                "parameters": [
+                    {
+                        "description": "订阅数据",
+                        "name": "sub",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.CreateSubRequest"
+                        }
+                    }
+                ],
                 "responses": {
-                    "200": {
-                        "description": "Success",
+                    "201": {
+                        "description": "订阅创建成功",
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/handler.StandardResponse"
+                                    "$ref": "#/definitions/model.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.Sub"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "无效请求",
+                        "schema": {
+                            "$ref": "#/definitions/model.BadRequestResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/model.UnauthorizedResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "订阅已存在",
+                        "schema": {
+                            "$ref": "#/definitions/model.ConflictResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/model.ServerErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sub/list": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取所有订阅的列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "订阅"
+                ],
+                "summary": "获取所有订阅",
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/model.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/model.Sub"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/model.UnauthorizedResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/model.ServerErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sub/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据ID获取订阅详情",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "订阅"
+                ],
+                "summary": "获取订阅详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "订阅ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/model.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.Sub"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "无效请求",
+                        "schema": {
+                            "$ref": "#/definitions/model.BadRequestResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/model.UnauthorizedResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "订阅不存在",
+                        "schema": {
+                            "$ref": "#/definitions/model.NotFoundResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/model.ServerErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "更新订阅URL",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "订阅"
+                ],
+                "summary": "更新订阅",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "订阅ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新的订阅数据",
+                        "name": "sub",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.UpdateSubRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "订阅已更新",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/model.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.Sub"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "无效请求",
+                        "schema": {
+                            "$ref": "#/definitions/model.BadRequestResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/model.UnauthorizedResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "订阅不存在",
+                        "schema": {
+                            "$ref": "#/definitions/model.NotFoundResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/model.ServerErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据ID删除订阅",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "订阅"
+                ],
+                "summary": "删除订阅",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "订阅ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "订阅已删除",
+                        "schema": {
+                            "$ref": "#/definitions/model.SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "无效请求",
+                        "schema": {
+                            "$ref": "#/definitions/model.BadRequestResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "未授权",
+                        "schema": {
+                            "$ref": "#/definitions/model.UnauthorizedResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "订阅不存在",
+                        "schema": {
+                            "$ref": "#/definitions/model.NotFoundResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/model.ServerErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sub/{id}/content": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "从订阅URL中获取内容并存储到内存中",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "订阅"
+                ],
+                "summary": "获取订阅内容",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "订阅ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/model.SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.Sub"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "无效请求",
+                        "schema": {
+                            "$ref": "#/definitions/model.BadRequestResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "订阅不存在",
+                        "schema": {
+                            "$ref": "#/definitions/model.ServerErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/model.ServerErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/user/info": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取当前登录用户的信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户"
+                ],
+                "summary": "获取用户信息",
+                "responses": {
+                    "200": {
+                        "description": "成功",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/model.SuccessResponse"
                                 },
                                 {
                                     "type": "object",
@@ -73,21 +482,21 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "未授权",
                         "schema": {
-                            "$ref": "#/definitions/handler.StandardResponse"
+                            "$ref": "#/definitions/model.UnauthorizedResponse"
                         }
                     },
                     "404": {
-                        "description": "User not found",
+                        "description": "用户不存在",
                         "schema": {
-                            "$ref": "#/definitions/handler.StandardResponse"
+                            "$ref": "#/definitions/model.NotFoundResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "服务器错误",
                         "schema": {
-                            "$ref": "#/definitions/handler.StandardResponse"
+                            "$ref": "#/definitions/model.ServerErrorResponse"
                         }
                     }
                 }
@@ -98,7 +507,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update user information (username, password)",
+                "description": "更新用户信息（用户名、密码）",
                 "consumes": [
                     "application/json"
                 ],
@@ -106,12 +515,12 @@
                     "application/json"
                 ],
                 "tags": [
-                    "User"
+                    "用户"
                 ],
-                "summary": "Update user information",
+                "summary": "更新用户信息",
                 "parameters": [
                     {
-                        "description": "Update user information request parameters",
+                        "description": "更新用户信息请求参数",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -122,33 +531,33 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Update successful",
+                        "description": "更新成功",
                         "schema": {
-                            "$ref": "#/definitions/handler.StandardResponse"
+                            "$ref": "#/definitions/model.SuccessResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid request parameters",
+                        "description": "无效的请求参数",
                         "schema": {
-                            "$ref": "#/definitions/handler.StandardResponse"
+                            "$ref": "#/definitions/model.BadRequestResponse"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized or incorrect old password",
+                        "description": "未授权或旧密码错误",
                         "schema": {
-                            "$ref": "#/definitions/handler.StandardResponse"
+                            "$ref": "#/definitions/model.UnauthorizedResponse"
                         }
                     },
                     "404": {
-                        "description": "User not found",
+                        "description": "用户不存在",
                         "schema": {
-                            "$ref": "#/definitions/handler.StandardResponse"
+                            "$ref": "#/definitions/model.NotFoundResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "服务器错误",
                         "schema": {
-                            "$ref": "#/definitions/handler.StandardResponse"
+                            "$ref": "#/definitions/model.ServerErrorResponse"
                         }
                     }
                 }
@@ -156,7 +565,7 @@
         },
         "/api/user/login": {
             "post": {
-                "description": "User login and get JWT token",
+                "description": "用户登录并获取JWT令牌",
                 "consumes": [
                     "application/json"
                 ],
@@ -164,12 +573,12 @@
                     "application/json"
                 ],
                 "tags": [
-                    "User"
+                    "用户"
                 ],
-                "summary": "User login",
+                "summary": "用户登录",
                 "parameters": [
                     {
-                        "description": "Login request parameters",
+                        "description": "登录请求参数",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -180,11 +589,11 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Login successful",
+                        "description": "登录成功",
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/handler.StandardResponse"
+                                    "$ref": "#/definitions/model.SuccessResponse"
                                 },
                                 {
                                     "type": "object",
@@ -198,21 +607,21 @@
                         }
                     },
                     "400": {
-                        "description": "Invalid request parameters",
+                        "description": "无效的请求参数",
                         "schema": {
-                            "$ref": "#/definitions/handler.StandardResponse"
+                            "$ref": "#/definitions/model.BadRequestResponse"
                         }
                     },
                     "401": {
-                        "description": "Invalid username or password",
+                        "description": "用户名或密码错误",
                         "schema": {
-                            "$ref": "#/definitions/handler.StandardResponse"
+                            "$ref": "#/definitions/model.UnauthorizedResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "服务器内部错误",
                         "schema": {
-                            "$ref": "#/definitions/handler.StandardResponse"
+                            "$ref": "#/definitions/model.ServerErrorResponse"
                         }
                     }
                 }
@@ -225,7 +634,7 @@
                         "BearerAuth": []
                     }
                 ],
-                "description": "User logout and invalidate JWT token",
+                "description": "用户登出并使JWT令牌失效",
                 "consumes": [
                     "application/json"
                 ],
@@ -233,20 +642,26 @@
                     "application/json"
                 ],
                 "tags": [
-                    "User"
+                    "用户"
                 ],
-                "summary": "User logout",
+                "summary": "用户登出",
                 "responses": {
                     "200": {
-                        "description": "Logout successful",
+                        "description": "登出成功",
                         "schema": {
-                            "$ref": "#/definitions/handler.StandardResponse"
+                            "$ref": "#/definitions/model.SuccessResponse"
                         }
                     },
                     "401": {
-                        "description": "Unauthorized",
+                        "description": "未授权",
                         "schema": {
-                            "$ref": "#/definitions/handler.StandardResponse"
+                            "$ref": "#/definitions/model.UnauthorizedResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/model.ServerErrorResponse"
                         }
                     }
                 }
@@ -254,6 +669,25 @@
         }
     },
     "definitions": {
+        "handler.CreateSubRequest": {
+            "type": "object",
+            "required": [
+                "auto_update",
+                "cron",
+                "url"
+            ],
+            "properties": {
+                "auto_update": {
+                    "type": "boolean"
+                },
+                "cron": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
         "handler.LoginRequest": {
             "type": "object",
             "required": [
@@ -286,14 +720,16 @@
                 }
             }
         },
-        "handler.StandardResponse": {
+        "handler.UpdateSubRequest": {
             "type": "object",
             "properties": {
-                "code": {
-                    "type": "integer"
+                "auto_update": {
+                    "type": "boolean"
                 },
-                "data": {},
-                "message": {
+                "cron": {
+                    "type": "string"
+                },
+                "url": {
                     "type": "string"
                 }
             }
@@ -310,6 +746,125 @@
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "model.BadRequestResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "example": 400
+                },
+                "data": {},
+                "message": {
+                    "type": "string",
+                    "example": "Invalid request parameters"
+                }
+            }
+        },
+        "model.ConflictResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "example": 409
+                },
+                "data": {},
+                "message": {
+                    "type": "string",
+                    "example": "Conflict"
+                }
+            }
+        },
+        "model.NotFoundResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "example": 404
+                },
+                "data": {},
+                "message": {
+                    "type": "string",
+                    "example": "Not found"
+                }
+            }
+        },
+        "model.ServerErrorResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "example": 500
+                },
+                "data": {},
+                "message": {
+                    "type": "string",
+                    "example": "Internal server error"
+                }
+            }
+        },
+        "model.Sub": {
+            "type": "object",
+            "properties": {
+                "alive_nodes": {
+                    "type": "integer"
+                },
+                "auto_update": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "cron": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_check": {
+                    "type": "string"
+                },
+                "last_fetch": {
+                    "type": "string"
+                },
+                "total_nodes": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.SuccessResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "example": 200
+                },
+                "data": {},
+                "message": {
+                    "type": "string",
+                    "example": "success"
+                }
+            }
+        },
+        "model.UnauthorizedResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "example": 401
+                },
+                "data": {},
+                "message": {
+                    "type": "string",
+                    "example": "Unauthorized access"
                 }
             }
         },

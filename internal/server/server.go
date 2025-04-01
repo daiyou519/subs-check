@@ -70,9 +70,11 @@ func (s *Server) setupRoutes() {
 
 	userHandler := handler.NewUserHandler(database.DB, s.config)
 	systemHandler := handler.NewSystemHandler(s.config)
+	subHandler := handler.NewSubHandler(database.DB, s.config)
 
 	router.MustRegisterGroup(s.router, userHandler)
 	router.MustRegisterGroup(s.router, systemHandler)
+	router.MustRegisterGroup(s.router, subHandler)
 
 	_ = docs.SwaggerInfo.ReadDoc()
 
@@ -82,7 +84,7 @@ func (s *Server) setupRoutes() {
 		ginSwagger.DocExpansion("list"),
 		ginSwagger.InstanceName("swagger"),
 	))
-	logger.Info("Swagger documentation available at /swagger/index.html")
+	logger.Info("Swagger documentation available at /api/swagger/index.html")
 
 	systemHandler.SetupStaticAssets(s.router)
 
