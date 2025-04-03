@@ -26,7 +26,7 @@ var (
 // @name Authorization
 // @description 请在值前加上 "Bearer " 前缀，例如："Bearer abcde12345"
 func main() {
-	configPath := flag.String("f", "", "Configuration file path, default is ./data/config.yaml")
+	configPath := flag.String("f", "", "Configuration file path, default is ./data/config.json")
 	version := flag.Bool("version", false, "Display version information")
 	port := flag.Int("port", 0, "Specify server port, overrides config file")
 	flag.Parse()
@@ -42,7 +42,7 @@ func main() {
 			logger.Error("Failed to get program path: %v", err)
 		}
 		execDir := filepath.Dir(execPath)
-		*configPath = filepath.Join(execDir, "data", "config.yaml")
+		*configPath = filepath.Join(execDir, "data", "config.json")
 	}
 
 	server.PrintVersion(Version, BuildTime, Author)

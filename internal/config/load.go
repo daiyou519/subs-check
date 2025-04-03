@@ -1,29 +1,29 @@
 package config
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 
 	"github.com/bestruirui/bestsub/internal/model"
-	"gopkg.in/yaml.v3"
 )
 
 var defaultConfig = &model.Config{
 	Server: struct {
-		Port int    `yaml:"port"`
-		Host string `yaml:"host"`
+		Port int    `json:"port"`
+		Host string `json:"host"`
 	}{
 		Port: 8080,
 		Host: "0.0.0.0",
 	},
 	Database: struct {
-		Path string `yaml:"path"`
+		Path string `json:"path"`
 	}{
 		Path: "data/bestsub.db",
 	},
 	JWT: struct {
-		Secret    string `yaml:"secret"`
-		ExpiresIn int    `yaml:"expires_in"`
+		Secret    string `json:"secret"`
+		ExpiresIn int    `json:"expires_in"`
 	}{
 		Secret:    "bestsub-jwt-secret",
 		ExpiresIn: 3600,
@@ -56,7 +56,7 @@ func Load(path string) (*model.Config, error) {
 }
 
 func createDefaultConfig(path string) (*model.Config, error) {
-	data, err := yaml.Marshal(defaultConfig)
+	data, err := json.MarshalIndent(defaultConfig, "", "    ")
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func readConfig(path string) (*model.Config, error) {
 	}
 
 	var cfg model.Config
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, err
 	}
 

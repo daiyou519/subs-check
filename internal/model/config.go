@@ -2,14 +2,14 @@ package model
 
 type Config struct {
 	Server struct {
-		Port int    `yaml:"port"`
-		Host string `yaml:"host"`
-	} `yaml:"server"`
+		Port int    `json:"port"`
+		Host string `json:"host"`
+	} `json:"server"`
 	Database struct {
-		Path string `yaml:"path"`
-	} `yaml:"database"`
+		Path string `json:"path"`
+	} `json:"database"`
 	JWT struct {
-		Secret    string `yaml:"secret"`
-		ExpiresIn int    `yaml:"expires_in"`
-	} `yaml:"jwt"`
+		Secret    string `json:"secret"`
+		ExpiresIn int    `json:"expires_in"`
+	} `json:"jwt"`
 }
