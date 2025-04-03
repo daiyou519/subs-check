@@ -1,11 +1,17 @@
 # BESTSUB
 
-<div align="center">
+
 
 ![Version](https://img.shields.io/badge/Status-开发中-blue)
 [![GitHub stars](https://img.shields.io/github/stars/bestruirui/BestSub.svg?style=social&label=Star)](https://github.com/bestruirui/BestSub)
 
-</div>
+## 📜 旧版 (Legacy Version)
+
+> **[点击这里](https://github.com/bestruirui/BestSub/blob/master/README_zh.md)** 跳转至经典命令行版本
+>
+> **[点击这里](https://github.com/bestruirui/BestSub/releases/latest)** 下载稳定的命令行版本的应用程序
+>
+> 旧版已趋于成熟，功能完善且运行稳定
 
 ## 📢 征集图标
 
@@ -24,6 +30,7 @@
 | 🔄 | **节点重命名** | 灵活的节点命名管理 |
 | 🔄 | **通知系统** | 多渠道的提醒服务 |
 
+
 ### 🔌 插件系统
 
 - 订阅保存
@@ -37,6 +44,7 @@
 - 每个订阅可自定义 `cron` 获取时间
 - 自定义检测项目
 - 自动识别订阅类型：`mihomo`/`base64`/`v2ray`
+- 可用节点缓存
 - 多种订阅导出选项：
   - 永久分享链接
   - 带过期信息的临时分享链接
@@ -45,6 +53,9 @@
 
 ### 🔍 节点检测
 
+- 节点去重
+  - 严格去重：落地IP相同则视为同一节点
+  - 宽松去重：不判断落地IP，仅通过配置文件去重
 - 通过插件形式自定义检测项目
 - 内置流媒体、OpenAI等服务检测
 
@@ -62,6 +73,7 @@
 ### 💫 未来展望
 
 - 多用户支持
+- 节点缓存功能，按国家缓存，保证每个地区都至少有一个可用节点
 
 ## ❤️ 支持项目
 
